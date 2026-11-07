@@ -178,13 +178,26 @@ async function runSimulation() {
                 scId = `${state.aircraftId}_crosswind`;
             }
 
-            // Intenta cargar escenario específico o el default
-            let staticRes = await fetch(`./data/sim_${scId}.json`);
-            if (!staticRes.ok) {
-                staticRes = await fetch(`./data/sim_default.json`);
-            }
-            if (staticRes.ok) {
-                data = await staticRes.json();
+            console.log(`[AERO-GNC] Modo estático activo. Cargando escenario: ${scId}`);
+
+            const candidates = [
+                `data/sim_${scId}.json`,
+                `./data/sim_${scId}.json`,
+                `data/sim_default.json`,
+                `./data/sim_default.json`
+            ];
+
+            for (const url of candidates) {
+                try {
+                    const staticRes = await fetch(url);
+                    if (staticRes.ok) {
+                        data = await staticRes.json();
+                        console.log(`[AERO-GNC] Datos cargados exitosamente desde: ${url}`);
+                        break;
+                    }
+                } catch (e) {
+                    // Siguiente candidato
+                }
             }
         } catch (staticErr) {
             console.error("Error al cargar escenario estático:", staticErr);
