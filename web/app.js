@@ -152,29 +152,58 @@ async function runSimulation() {
         lateral_offset: 18.0
     };
 
+    let data = null;
+
+    // 1. Intentar llamar al backend local de Python (si está corriendo)
     try {
         const res = await fetch("/api/simulate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         });
-        const data = await res.json();
-        if (data.status === "success") {
-            state.simData = data;
-            state.currentIndex = 0;
-            state.isPlaying = true;
-            els.btnPlayPause.textContent = "PAUSA";
-            updateStaticSummaries(data);
-            startAnimationLoop();
-        } else {
-            alert(`Error en simulación: ${data.message}`);
+        if (res.ok) {
+            data = await res.json();
         }
     } catch (err) {
-        console.error("Error al conectar con el servidor de simulación:", err);
-    } finally {
-        els.btnRunSim.textContent = "SIMULAR VUELO";
-        els.btnRunSim.disabled = false;
+        // En GitHub Pages no hay servidor Python, se recurre a datos estáticos
     }
+
+    // 2. Si no hay backend, cargar escenario estático precalculado correspondiente
+    if (!data || data.status !== "success") {
+        try {
+            let scId = `${state.aircraftId}_nominal`;
+            if (payload.microburst) {
+                scId = `${state.aircraftId}_microburst`;
+            } else if (payload.crosswind > 4.0) {
+                scId = `${state.aircraftId}_crosswind`;
+            }
+
+            // Intenta cargar escenario específico o el default
+            let staticRes = await fetch(`./data/sim_${scId}.json`);
+            if (!staticRes.ok) {
+                staticRes = await fetch(`./data/sim_default.json`);
+            }
+            if (staticRes.ok) {
+                data = await staticRes.json();
+            }
+        } catch (staticErr) {
+            console.error("Error al cargar escenario estático:", staticErr);
+        }
+    }
+
+    if (data && data.status === "success") {
+        state.simData = data;
+        state.currentIndex = 0;
+        state.isPlaying = true;
+        els.btnPlayPause.textContent = "PAUSA";
+        updateStaticSummaries(data);
+        startAnimationLoop();
+    } else {
+        alert("No se pudo cargar la simulación. Verifique la conexión.");
+    }
+
+    els.btnRunSim.textContent = "SIMULAR VUELO";
+    els.btnRunSim.disabled = false;
 }
 
 function updateStaticSummaries(data) {
@@ -716,10 +745,28 @@ async function openValidationModal() {
     els.validationModal.classList.remove("hidden");
     els.tbodyBenchmark.innerHTML = `<tr><td colspan="7">Calculando autovalores analíticos...</td></tr>`;
 
+    let data = null;
     try {
         const res = await fetch(`/api/validation?aircraft_id=${state.aircraftId}`);
-        const data = await res.json();
-        if (data.status === "success") {
+        if (res.ok) {
+            data = await res.json();
+        }
+    } catch (err) {
+        // Fallback para GitHub Pages
+    }
+
+    if (!data || data.status !== "success") {
+        try {
+            const staticRes = await fetch(`./data/val_${state.aircraftId}.json`);
+            if (staticRes.ok) {
+                data = await staticRes.json();
+            }
+        } catch (sErr) {
+            console.error("Error al cargar validación estática:", sErr);
+        }
+    }
+
+    if (data && data.status === "success") {
             // 1. Tabla Benchmark
             els.tbodyBenchmark.innerHTML = "";
             data.benchmark_comparison.forEach((r) => {

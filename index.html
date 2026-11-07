@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AERO-GNC | Simulador de Dinámica de Vuelo y Guiado ILS</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="top-nav">
+        <div class="logo-area">
+            <span class="hud-badge">GNC-6DOF</span>
+            <h1>AERO-GNC <span class="sub-title">// SIMULACIÓN ILS BAJO WINDSHEAR Y TURBULENCIA</span></h1>
+        </div>
+        <div class="flight-status-banner">
+            <span class="label">ESTADO DE APROXIMACIÓN:</span>
+            <span id="flight-phase-badge" class="badge phase-normal">EN SENDA GLIDESLOPE</span>
+        </div>
+        <div class="top-controls">
+            <select id="aircraft-selector" title="Seleccionar Aeronave">
+                <option value="b737">Boeing 737 (Transporte Comercial)</option>
+                <option value="c172">Cessna 172 (Aviación General)</option>
+            </select>
+            <button id="btn-validation-modal" class="btn btn-secondary">Validación Numérica</button>
+            <button id="btn-run-sim" class="btn btn-primary">Simular Vuelo</button>
+        </div>
+    </header>
+
+    <main class="dashboard-grid">
+        <!-- COLUMNA IZQUIERDA: INSTRUMENTACIÓN EFIS (PFD) Y PERSPECTIVA 3D -->
+        <section class="panel instrument-panel">
+            <div class="panel-header">
+                <h2>PRIMARY FLIGHT DISPLAY (PFD)</h2>
+                <span class="live-tag">LIVE HUD</span>
+            </div>
+            <div class="pfd-wrapper">
+                <canvas id="pfd-canvas" width="460" height="380"></canvas>
+            </div>
+
+            <div class="panel-header" style="margin-top: 15px;">
+                <h2>PERSPECTIVA 3D DE APROXIMACIÓN A PISTA</h2>
+                <span id="ils-frequency-tag" class="hud-mono">ILS RWY 09L - 109.50 MHz</span>
+            </div>
+            <div class="runway3d-wrapper">
+                <canvas id="runway-canvas" width="460" height="230"></canvas>
+            </div>
+        </section>
+
+        <!-- COLUMNA CENTRAL: TELEMETRÍA DINÁMICA Y GRÁFICAS DE TRAYECTORIA -->
+        <section class="panel telemetry-panel">
+            <div class="panel-header">
+                <h2>TELEMETRÍA DE ESTADO EN TIEMPO REAL</h2>
+                <span id="sim-time-display" class="hud-mono">T+ 00.00 s</span>
+            </div>
+            
+            <div class="telemetry-readouts-grid">
+                <div class="readout-card">
+                    <span class="r-label">AIRSPEED (TAS)</span>
+                    <span id="readout-tas" class="r-value">135.0</span>
+                    <span class="r-unit">KTS</span>
+                </div>
+                <div class="readout-card">
+                    <span class="r-label">ALTITUD (AGL)</span>
+                    <span id="readout-alt" class="r-value">740</span>
+                    <span class="r-unit">FT</span>
+                </div>
+                <div class="readout-card">
+                    <span class="r-label">VERTICAL SPEED</span>
+                    <span id="readout-vs" class="r-value">-708</span>
+                    <span class="r-unit">FPM</span>
+                </div>
+                <div class="readout-card">
+                    <span class="r-label">ALPHA / BETA</span>
+                    <span id="readout-alpha-beta" class="r-value">4.2° / 0.1°</span>
+                    <span class="r-unit">AOA/AOS</span>
+                </div>
+                <div class="readout-card">
+                    <span class="r-label">FACTOR DE CARGA</span>
+                    <span id="readout-nz" class="r-value">1.00</span>
+                    <span class="r-unit">G</span>
+                </div>
+                <div class="readout-card">
+                    <span class="r-label">EMPUJE / THROTTLE</span>
+                    <span id="readout-throttle" class="r-value">38.0</span>
+                    <span class="r-unit">%</span>
+                </div>
+            </div>
+
+            <div class="charts-container">
+                <div class="chart-box">
+                    <div class="chart-title">
+                        <span>Perfil Vertical Senda Glideslope (Altitud vs Distancia)</span>
+                        <span class="legend-box"><span class="leg-blue">■ Real</span> <span class="leg-dash">-- 3° Senda</span></span>
+                    </div>
+                    <canvas id="chart-glideslope" width="560" height="150"></canvas>
+                </div>
+                
+                <div class="chart-box">
+                    <div class="chart-title">
+                        <span>Desviación de Agujas ILS (Glideslope & Localizer) [Dots]</span>
+                        <span class="legend-box"><span class="leg-red">■ GS</span> <span class="leg-purple">■ LOC</span> <span class="leg-green">Banda ±1 Dot</span></span>
+                    </div>
+                    <canvas id="chart-dots" width="560" height="140"></canvas>
+                </div>
+
+                <div class="chart-box">
+                    <div class="chart-title">
+                        <span>Deflexión de Superficies de Mando [deg] & Acelerador [%]</span>
+                        <span class="legend-box"><span class="leg-blue">Elev</span> <span class="leg-green">Ail</span> <span class="leg-orange">Rud</span> <span class="leg-red">Thr</span></span>
+                    </div>
+                    <canvas id="chart-controls" width="560" height="140"></canvas>
+                </div>
+            </div>
+
+            <!-- CONTROLES DE REPRODUCCIÓN -->
+            <div class="playback-bar">
+                <button id="btn-play-pause" class="btn btn-playback">PAUSA</button>
+                <button id="btn-speed" class="btn btn-playback">1x</button>
+                <input type="range" id="timeline-slider" min="0" max="100" value="0" step="0.5">
+                <button id="btn-restart" class="btn btn-playback">REINICIAR</button>
+            </div>
+        </section>
+
+        <!-- COLUMNA DERECHA: CONFIGURACIÓN METEOROLÓGICA Y EVALUACIÓN FAA -->
+        <section class="panel control-panel">
+            <div class="panel-header">
+                <h2>CONDICIONES METEOROLÓGICAS</h2>
+                <span class="hud-mono">ATMÓSFERA ISA</span>
+            </div>
+
+            <div class="param-group">
+                <div class="slider-row">
+                    <label for="sl-headwind">Viento de Frente Medio:</label>
+                    <span id="val-headwind" class="val-badge">5.0 m/s (~10 kts)</span>
+                </div>
+                <input type="range" id="sl-headwind" min="-10.0" max="20.0" value="5.0" step="0.5">
+            </div>
+
+            <div class="param-group">
+                <div class="slider-row">
+                    <label for="sl-crosswind">Viento Cruzado:</label>
+                    <span id="val-crosswind" class="val-badge">2.0 m/s (~4 kts)</span>
+                </div>
+                <input type="range" id="sl-crosswind" min="0.0" max="15.0" value="2.0" step="0.5">
+            </div>
+
+            <div class="param-group highlight-box">
+                <div class="checkbox-row">
+                    <input type="checkbox" id="chk-microburst" checked>
+                    <label for="chk-microburst" class="bold-label">Activar Microrráfaga / Cizalladura Severa</label>
+                </div>
+                <div class="slider-row">
+                    <label for="sl-micro-u">Cizalladura Horizontal (ΔU):</label>
+                    <span id="val-micro-u" class="val-badge">14.0 m/s (~27 kts)</span>
+                </div>
+                <input type="range" id="sl-micro-u" min="5.0" max="25.0" value="14.0" step="1.0">
+
+                <div class="slider-row" style="margin-top: 8px;">
+                    <label for="sl-micro-w">Núcleo Descendente (W down):</label>
+                    <span id="val-micro-w" class="val-badge">5.5 m/s (~1100 fpm)</span>
+                </div>
+                <input type="range" id="sl-micro-w" min="1.0" max="12.0" value="5.5" step="0.5">
+            </div>
+
+            <div class="param-group">
+                <div class="slider-row">
+                    <label for="sl-turbulence">Intensidad Turbulencia Dryden:</label>
+                    <span id="val-turbulence" class="val-badge">0.6 m/s (Moderada)</span>
+                </div>
+                <input type="range" id="sl-turbulence" min="0.0" max="2.0" value="0.6" step="0.1">
+            </div>
+
+            <div class="panel-header" style="margin-top: 15px;">
+                <h2>EVALUACIÓN FAA AC 120-71B (ESTABILIZACIÓN)</h2>
+            </div>
+            
+            <div class="gates-summary-box">
+                <div class="gate-card" id="card-gate-imc">
+                    <div class="gate-title">
+                        <span>COMPUERTA IMC (1000 ft AGL)</span>
+                        <span id="gate-imc-status" class="badge">EVALUANDO...</span>
+                    </div>
+                    <div id="gate-imc-details" class="gate-text">Monitoreando aproximación...</div>
+                </div>
+
+                <div class="gate-card" id="card-gate-vmc">
+                    <div class="gate-title">
+                        <span>COMPUERTA VMC (500 ft AGL)</span>
+                        <span id="gate-vmc-status" class="badge">EVALUANDO...</span>
+                    </div>
+                    <div id="gate-vmc-details" class="gate-text">Monitoreando aproximación...</div>
+                </div>
+
+                <div class="gate-card" id="card-touchdown">
+                    <div class="gate-title">
+                        <span>TOMA DE CONTACTO (TOUCHDOWN)</span>
+                        <span id="touchdown-status" class="badge">EN APROXIMACIÓN</span>
+                    </div>
+                    <div id="touchdown-details" class="gate-text">Aeronave en descenso hacia cabecera...</div>
+                </div>
+            </div>
+
+            <div class="events-log-box">
+                <div class="log-title">REGISTRO DE SEGURIDAD OPERACIONAL</div>
+                <ul id="events-list">
+                    <li>Sistema GNC inicializado en trimado.</li>
+                    <li>Senda ILS capturada a 3.8 km de pista.</li>
+                </ul>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL DE VALIDACIÓN CUANTITATIVA -->
+    <div id="validation-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>VALIDACIÓN CUANTITATIVA DEL MODELO AERONÁUTICO (NELSON 1998)</h2>
+                <button id="btn-close-modal" class="btn-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h3>1. Autovalores Modales: Simulación Integrada vs Benchmark de Literatura</h3>
+                <p class="modal-desc">
+                    Comparación de los autovalores y frecuencias naturales calculados frente a los valores de referencia
+                    publicados para transporte a reacción en aproximación (Nelson 1998, Roskam 2001).
+                </p>
+                <table class="val-table" id="table-benchmark">
+                    <thead>
+                        <tr>
+                            <th>Modo Dinámico</th>
+                            <th>Autovalor Calculado</th>
+                            <th>Autovalor Referencia</th>
+                            <th>ωn Calc [rad/s]</th>
+                            <th>ωn Ref [rad/s]</th>
+                            <th>Error Rel. ωn [%]</th>
+                            <th>Error Rel. Autovalor [%]</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-benchmark">
+                        <!-- Llenado dinámico -->
+                    </tbody>
+                </table>
+
+                <h3 style="margin-top: 25px;">2. Modelo Acoplado 4-DOF vs Aproximaciones Analíticas Clásicas 2-DOF</h3>
+                <p class="modal-desc">
+                    Contraste entre las ecuaciones acopladas completas y las fórmulas analíticas de desacoplamiento
+                    clásico (Periodo Corto Nelson Eq. 4.79, Fugoide Eq. 4.88, Dutch Roll Eq. 5.56).
+                </p>
+                <table class="val-table" id="table-approx">
+                    <thead>
+                        <tr>
+                            <th>Modo Dinámico</th>
+                            <th>ωn Modelo 4-DOF [rad/s]</th>
+                            <th>ωn Aprox. 2-DOF [rad/s]</th>
+                            <th>Amortiguamiento ζ 4-DOF</th>
+                            <th>Amortiguamiento ζ 2-DOF</th>
+                            <th>Discrepancia Relativa [%]</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-approx">
+                        <!-- Llenado dinámico -->
+                    </tbody>
+                </table>
+
+                <h3 style="margin-top: 25px;">3. Verificación de Precisión del Integrador RK4</h3>
+                <div id="rk4-verification-box" class="rk4-box">
+                    Cargando análisis de convergencia...
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="btn-modal-ok" class="btn btn-primary">Entendido</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

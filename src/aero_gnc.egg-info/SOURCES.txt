@@ -1,5 +1,8 @@
+README.md
 pyproject.toml
 src/aero_gnc/__init__.py
+src/aero_gnc/cli.py
+src/aero_gnc/simulator.py
 src/aero_gnc.egg-info/PKG-INFO
 src/aero_gnc.egg-info/SOURCES.txt
 src/aero_gnc.egg-info/dependency_links.txt
@@ -21,4 +24,12 @@ src/aero_gnc/core/wind_turbulence.py
 src/aero_gnc/safety/__init__.py
 src/aero_gnc/safety/approach_monitor.py
 src/aero_gnc/safety/flight_envelope.py
+src/aero_gnc/validation/__init__.py
 src/aero_gnc/validation/modal_validation.py
+src/aero_gnc/visualization/dashboard_server.py
+src/aero_gnc/visualization/publication_plots.py
+tests/test_atmosphere.py
+tests/test_autopilot.py
+tests/test_dynamics.py
+tests/test_envelope_safety.py
+tests/test_validation_nelson.py
