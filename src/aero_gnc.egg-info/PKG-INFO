@@ -1,0 +1,14 @@
+Metadata-Version: 2.4
+Name: aero-gnc
+Version: 1.0.0
+Summary: Simulación y Control Automático de Aproximación Final por Instrumentos (ILS) bajo Cizalladura de Viento y Turbulencia
+Author-email: Equipo de Desarrollo de Software Aeronáutico <aeronautica@ingenieria.edu>
+License: MIT
+Classifier: Programming Language :: Python :: 3
+Classifier: Topic :: Scientific/Engineering :: Physics
+Classifier: Topic :: Scientific/Engineering :: Atmospheric Science
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: scipy>=1.10.0
+Requires-Dist: matplotlib>=3.7.0

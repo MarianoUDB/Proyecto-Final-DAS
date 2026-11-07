@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aero-gnc"
+version = "1.0.0"
+description = "Simulación y Control Automático de Aproximación Final por Instrumentos (ILS) bajo Cizalladura de Viento y Turbulencia"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    { name = "Equipo de Desarrollo de Software Aeronáutico", email = "aeronautica@ingenieria.edu" }
+]
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+]
+dependencies = [
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+    "matplotlib>=3.7.0"
+]
+
+[project.scripts]
+aero-gnc = "aero_gnc.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

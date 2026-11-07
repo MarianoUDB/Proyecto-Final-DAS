@@ -1,0 +1,2 @@
+[console_scripts]
+aero-gnc = aero_gnc.cli:main
